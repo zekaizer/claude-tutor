@@ -10,7 +10,9 @@ import type {
   AssistantMessage,
   ResultMessage,
   Subject,
+  MemoryUpdate,
 } from '../types/index.js';
+import { memoryManager } from './memory-manager.js';
 
 const TIMEOUT_MS = 60000; // 60 seconds
 const KILL_GRACE_MS = 5000; // 5 seconds for SIGKILL
@@ -97,12 +99,19 @@ export class ClaudeBridge extends EventEmitter {
   private currentSessionId: string | null = null;
   private currentSubject: Subject = 'math';
   private basePrompt: string = '';
+  private memoryInstructionsPrompt: string = '';
   private subjectPrompts: Map<Subject, string> = new Map();
   private circuitBreaker = new CircuitBreaker();
 
   async initialize(): Promise<void> {
     this.basePrompt = await readFile(
       join(process.cwd(), 'src/prompts/base-tutor.md'),
+      'utf-8'
+    );
+
+    // Load memory instructions prompt
+    this.memoryInstructionsPrompt = await readFile(
+      join(process.cwd(), 'src/prompts/memory-instructions.md'),
       'utf-8'
     );
 
@@ -120,7 +129,16 @@ export class ClaudeBridge extends EventEmitter {
 
   private getSystemPrompt(subject: Subject): string {
     const subjectPrompt = this.subjectPrompts.get(subject) || '';
-    return `${this.basePrompt}\n\n${subjectPrompt}`;
+    const memoryContext = memoryManager.getMemoryPromptSection();
+
+    return `${this.basePrompt}
+
+## 현재 기억된 학생 정보
+${memoryContext}
+
+${this.memoryInstructionsPrompt}
+
+${subjectPrompt}`;
   }
 
   async chat(message: string, sessionId?: string, subject?: Subject): Promise<ChatResponse> {
@@ -204,16 +222,20 @@ export class ClaudeBridge extends EventEmitter {
 
   private executeQuery(request: QueuedRequest): Promise<ChatResponse> {
     return new Promise((resolve, reject) => {
-      const isNewSession = !request.sessionId && !this.currentSessionId;
       const subject = request.subject || 'math';
 
-      // If starting new session with different subject, reset
-      if (isNewSession || (request.subject && request.subject !== this.currentSubject)) {
+      // Client sends no sessionId = wants new session
+      // OR different subject = reset session
+      const clientWantsNewSession = !request.sessionId;
+      const subjectChanged = request.subject && request.subject !== this.currentSubject;
+
+      if (clientWantsNewSession || subjectChanged) {
         this.currentSubject = subject;
         this.currentSessionId = null;
       }
 
-      const args = this.buildArgs(!this.currentSessionId, subject);
+      const isNewSession = !this.currentSessionId;
+      const args = this.buildArgs(isNewSession, subject);
 
       console.log('[ClaudeBridge] Spawning claude with args:', args.join(' '));
 
@@ -262,11 +284,23 @@ export class ClaudeBridge extends EventEmitter {
         }
 
         // Parse NDJSON output
-        const { text, parsedSessionId } = this.parseOutput(stdout);
+        const { text, parsedSessionId, memoryUpdates } = this.parseOutput(stdout);
 
         if (parsedSessionId) {
           this.currentSessionId = parsedSessionId;
         }
+
+        // Apply memory updates (async but don't wait)
+        if (memoryUpdates.length > 0) {
+          memoryManager.applyMemoryUpdates(memoryUpdates).catch((err) => {
+            console.error('[ClaudeBridge] Failed to apply memory updates:', err);
+          });
+        }
+
+        // Check for compaction in response (async but don't wait)
+        memoryManager.extractAndApplyCompaction(text).catch((err) => {
+          console.error('[ClaudeBridge] Failed to apply compaction:', err);
+        });
 
         resolve({
           text,
@@ -281,7 +315,11 @@ export class ClaudeBridge extends EventEmitter {
       });
 
       // Send message via stdin
-      child.stdin.write(request.message);
+      // Add hints for resumed sessions (system prompt not re-sent)
+      const messageToSend = isNewSession
+        ? request.message
+        : `${request.message}\n\n(힌트: 학생 정보를 어떻게 아는지 물으면 "원래 알고 있었지~" 처럼 자연스럽게. 새 정보가 있으면 [MEMORY:key=value] 형식으로 응답 끝에 기록)`;
+      child.stdin.write(messageToSend);
       child.stdin.end();
     });
   }
@@ -293,7 +331,7 @@ export class ClaudeBridge extends EventEmitter {
       'stream-json',
       '--verbose', // REQUIRED with stream-json
       '--model',
-      'sonnet',
+      'haiku',
     ];
 
     if (isNewSession) {
@@ -302,8 +340,8 @@ export class ClaudeBridge extends EventEmitter {
       args.push('--append-system-prompt', systemPrompt);
       args.push('--disallowedTools', DISALLOWED_TOOLS);
     } else {
-      // Continue existing session
-      args.push('--continue');
+      // Resume existing session with specific session ID
+      args.push('--resume', this.currentSessionId!);
     }
 
     return args;
@@ -312,6 +350,7 @@ export class ClaudeBridge extends EventEmitter {
   private parseOutput(stdout: string): {
     text: string;
     parsedSessionId: string | null;
+    memoryUpdates: MemoryUpdate[];
   } {
     const lines = stdout.split('\n').filter((line) => line.trim());
     let text = '';
@@ -348,7 +387,19 @@ export class ClaudeBridge extends EventEmitter {
       }
     }
 
-    return { text, parsedSessionId };
+    // Debug: log raw response text
+    console.log('[ClaudeBridge] Raw response:', text.substring(0, 200));
+
+    // Extract memory markers and clean text
+    const memoryUpdates = memoryManager.extractMemoryFromResponse(text);
+    if (memoryUpdates.length > 0) {
+      console.log('[ClaudeBridge] Found memory markers:', memoryUpdates);
+    } else {
+      console.log('[ClaudeBridge] No memory markers found in response');
+    }
+    const cleanText = memoryManager.stripMemoryMarkers(text);
+
+    return { text: cleanText, parsedSessionId, memoryUpdates };
   }
 
   // Reset session (for starting a new conversation)
@@ -370,5 +421,111 @@ export class ClaudeBridge extends EventEmitter {
   // Get circuit breaker state
   getCircuitState(): CircuitState {
     return this.circuitBreaker.getState();
+  }
+
+  /**
+   * Run memory compaction if needed (called periodically or on-demand)
+   */
+  async runCompactionIfNeeded(): Promise<boolean> {
+    if (!memoryManager.needsCompaction()) {
+      return false;
+    }
+
+    console.log('[ClaudeBridge] Starting memory compaction...');
+
+    try {
+      const prompt = memoryManager.buildCompactionPrompt();
+      const result = await this.executeCompactionQuery(prompt);
+
+      if (result) {
+        const success = await memoryManager.applyCompactedMemory(result);
+        if (success) {
+          console.log('[ClaudeBridge] Memory compaction completed');
+          return true;
+        }
+      }
+
+      console.log('[ClaudeBridge] Memory compaction failed');
+      return false;
+    } catch (error) {
+      console.error('[ClaudeBridge] Compaction error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Execute compaction query (separate from chat, no session)
+   */
+  private executeCompactionQuery(prompt: string): Promise<string | null> {
+    return new Promise((resolve) => {
+      const args = [
+        '-p',
+        '--output-format',
+        'stream-json',
+        '--verbose',
+        '--model',
+        'haiku',
+      ];
+
+      console.log('[ClaudeBridge] Running compaction query');
+
+      const child = spawn('claude', args, {
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+
+      let stdout = '';
+      let killed = false;
+
+      const timeout = setTimeout(() => {
+        killed = true;
+        child.kill('SIGTERM');
+      }, 30000); // 30s timeout for compaction
+
+      child.stdout.on('data', (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      child.on('close', (code) => {
+        clearTimeout(timeout);
+
+        if (killed || code !== 0) {
+          resolve(null);
+          return;
+        }
+
+        // Extract text from response
+        const lines = stdout.split('\n').filter((line) => line.trim());
+        let text = '';
+
+        for (const line of lines) {
+          try {
+            const json = JSON.parse(line);
+            if (json.type === 'assistant') {
+              const content = json.message?.content;
+              if (content && content.length > 0) {
+                text = content
+                  .filter((c: { type: string }) => c.type === 'text')
+                  .map((c: { text: string }) => c.text)
+                  .join('\n');
+              }
+            } else if (json.type === 'result' && !text) {
+              text = json.result || '';
+            }
+          } catch {
+            // Skip non-JSON
+          }
+        }
+
+        resolve(text || null);
+      });
+
+      child.on('error', () => {
+        clearTimeout(timeout);
+        resolve(null);
+      });
+
+      child.stdin.write(prompt);
+      child.stdin.end();
+    });
   }
 }

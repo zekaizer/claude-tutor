@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { ClaudeBridge } from './services/claude-bridge.js';
 import { historyWriter } from './services/history-writer.js';
 import { usageLimiter } from './services/usage-limiter.js';
+import { memoryManager } from './services/memory-manager.js';
 import type { WsIncomingMessage, WsOutgoingMessage, Subject, WelcomeRequest, ChatRequest } from './types/index.js';
 import { SUBJECT_NAMES } from './types/index.js';
 
@@ -70,6 +71,7 @@ async function main() {
   await claudeBridge.initialize();
   await historyWriter.init();
   await usageLimiter.init();
+  await memoryManager.init();
   console.log('[Server] All services initialized');
 
   // Serve static files
@@ -110,6 +112,38 @@ async function main() {
     } else {
       res.status(404).json({ error: 'Not found' });
     }
+  });
+
+  // Memory endpoints (parental controls)
+  app.get('/api/memory', (_req, res) => {
+    res.json(memoryManager.getMemorySummary());
+  });
+
+  app.delete('/api/memory', async (_req, res) => {
+    await memoryManager.clearMemory();
+    res.json({ status: 'ok', message: 'Memory cleared' });
+  });
+
+  app.patch('/api/memory', express.json(), async (req, res) => {
+    try {
+      await memoryManager.updateMemory(req.body);
+      res.json({ status: 'ok', message: 'Memory updated' });
+    } catch (error) {
+      res.status(400).json({ error: (error as Error).message });
+    }
+  });
+
+  // Memory compaction endpoint
+  app.post('/api/memory/compact', async (_req, res) => {
+    const stats = memoryManager.getStats();
+    const compacted = await claudeBridge.runCompactionIfNeeded();
+    const newStats = memoryManager.getStats();
+
+    res.json({
+      status: compacted ? 'compacted' : 'skipped',
+      before: stats,
+      after: newStats,
+    });
   });
 
   // WebSocket connection handling

@@ -105,3 +105,19 @@ export interface QueuedRequest {
   resolve: (value: ChatResponse) => void;
   reject: (error: Error) => void;
 }
+
+// User Memory types
+
+// Simple key-value storage - store whatever Claude outputs
+export interface UserMemory {
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+  // Flexible key-value pairs: string for single values, string[] for multiple
+  data: Record<string, string | string[]>;
+}
+
+export interface MemoryUpdate {
+  key: string;
+  value: string;
+}
