@@ -9,6 +9,7 @@ import type {
   InitMessage,
   AssistantMessage,
   ResultMessage,
+  Subject,
 } from '../types/index.js';
 
 const TIMEOUT_MS = 60000; // 60 seconds
@@ -30,28 +31,49 @@ const DISALLOWED_TOOLS = [
   'TodoWrite',
 ].join(',');
 
+const SUBJECT_PROMPT_FILES: Record<Subject, string> = {
+  math: 'math-tutor.md',
+  science: 'science-tutor.md',
+  english: 'english-tutor.md',
+  korean: 'korean-tutor.md',
+};
+
 export class ClaudeBridge extends EventEmitter {
   private queue: QueuedRequest[] = [];
   private processing = false;
   private currentSessionId: string | null = null;
-  private systemPrompt: string = '';
+  private currentSubject: Subject = 'math';
+  private basePrompt: string = '';
+  private subjectPrompts: Map<Subject, string> = new Map();
 
   async initialize(): Promise<void> {
-    const basePrompt = await readFile(
+    this.basePrompt = await readFile(
       join(process.cwd(), 'src/prompts/base-tutor.md'),
       'utf-8'
     );
-    const mathPrompt = await readFile(
-      join(process.cwd(), 'src/prompts/math-tutor.md'),
-      'utf-8'
-    );
-    this.systemPrompt = `${basePrompt}\n\n${mathPrompt}`;
-    console.log('[ClaudeBridge] System prompt loaded');
+
+    // Load all subject prompts
+    for (const [subject, filename] of Object.entries(SUBJECT_PROMPT_FILES)) {
+      const prompt = await readFile(
+        join(process.cwd(), 'src/prompts', filename),
+        'utf-8'
+      );
+      this.subjectPrompts.set(subject as Subject, prompt);
+    }
+
+    console.log('[ClaudeBridge] System prompts loaded for all subjects');
   }
 
-  async chat(message: string, sessionId?: string): Promise<ChatResponse> {
+  private getSystemPrompt(subject: Subject): string {
+    const subjectPrompt = this.subjectPrompts.get(subject) || '';
+    return `${this.basePrompt}\n\n${subjectPrompt}`;
+  }
+
+  async chat(message: string, sessionId?: string, subject?: Subject): Promise<ChatResponse> {
     return new Promise((resolve, reject) => {
-      this.queue.push({ message, sessionId, resolve, reject });
+      // Default to math if no subject specified
+      const effectiveSubject = subject || this.currentSubject;
+      this.queue.push({ message, sessionId, subject: effectiveSubject, resolve, reject });
       this.processQueue();
     });
   }
@@ -76,7 +98,15 @@ export class ClaudeBridge extends EventEmitter {
   private executeQuery(request: QueuedRequest): Promise<ChatResponse> {
     return new Promise((resolve, reject) => {
       const isNewSession = !request.sessionId && !this.currentSessionId;
-      const args = this.buildArgs(isNewSession);
+      const subject = request.subject || 'math';
+
+      // If starting new session with different subject, reset
+      if (isNewSession || (request.subject && request.subject !== this.currentSubject)) {
+        this.currentSubject = subject;
+        this.currentSessionId = null;
+      }
+
+      const args = this.buildArgs(!this.currentSessionId, subject);
 
       console.log('[ClaudeBridge] Spawning claude with args:', args.join(' '));
 
@@ -149,7 +179,7 @@ export class ClaudeBridge extends EventEmitter {
     });
   }
 
-  private buildArgs(isNewSession: boolean): string[] {
+  private buildArgs(isNewSession: boolean, subject: Subject): string[] {
     const args = [
       '-p',
       '--output-format',
@@ -161,7 +191,8 @@ export class ClaudeBridge extends EventEmitter {
 
     if (isNewSession) {
       // New session - include system prompt and tool restrictions
-      args.push('--append-system-prompt', this.systemPrompt);
+      const systemPrompt = this.getSystemPrompt(subject);
+      args.push('--append-system-prompt', systemPrompt);
       args.push('--disallowedTools', DISALLOWED_TOOLS);
     } else {
       // Continue existing session
@@ -222,5 +253,10 @@ export class ClaudeBridge extends EventEmitter {
   // Get current session ID
   getSessionId(): string | null {
     return this.currentSessionId;
+  }
+
+  // Get current subject
+  getCurrentSubject(): Subject {
+    return this.currentSubject;
   }
 }
