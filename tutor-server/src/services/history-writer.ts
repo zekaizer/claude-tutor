@@ -119,11 +119,35 @@ export class HistoryWriter {
     return null;
   }
 
-  async getHistory(date: string): Promise<string[]> {
+  async getHistory(date: string): Promise<SessionInfo[]> {
     const dateDir = path.join(HISTORY_DIR, date);
     try {
       const files = await fs.readdir(dateDir);
-      return files.filter((f) => f.endsWith('.md'));
+      const sessionIds = files
+        .filter((f) => f.endsWith('.md'))
+        .map((f) => f.replace('.md', ''));
+
+      // Return session info for each session file
+      const sessions: SessionInfo[] = [];
+      for (const sessionId of sessionIds) {
+        const info = this.sessionMap.get(sessionId);
+        if (info) {
+          sessions.push(info);
+        } else {
+          // Fallback for sessions not in map (edge case)
+          sessions.push({
+            sessionId,
+            subject: 'math',
+            createdAt: date,
+            messageCount: 0,
+          });
+        }
+      }
+
+      // Sort by creation time (newest first)
+      return sessions.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
     } catch {
       return [];
     }

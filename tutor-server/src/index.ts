@@ -50,8 +50,8 @@ async function main() {
 
   // History endpoints
   app.get('/api/history/:date', async (req, res) => {
-    const files = await historyWriter.getHistory(req.params.date);
-    res.json({ files });
+    const sessions = await historyWriter.getHistory(req.params.date);
+    res.json({ sessions });
   });
 
   app.get('/api/history/:date/:sessionId', async (req, res) => {
