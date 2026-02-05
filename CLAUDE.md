@@ -20,9 +20,16 @@ This project is in the **design phase**. See [docs/design.md](docs/design.md) fo
 ## Key Design Decisions
 
 - CLI approach chosen over Agent SDK to utilize Max subscription
-- Session management via `--resume` flag
+- Session management via `--continue` flag (verified working)
 - History stored as markdown files in `~/tutor-history/`
-- Tool restrictions via `--allowedTools none` for safety
+- Tool restrictions via `--disallowedTools` for safety
+
+## Git Workflow
+
+- **Branch strategy**: Simple branch approach (no worktree)
+- **Branch naming**: `feature/phase1-mvp`, `feature/phase2`, etc.
+- **Merge**: To main after each phase completion
+- **Tags**: `v0.1.0`, `v0.2.0`, etc.
 
 ## Build Commands
 
