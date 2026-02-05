@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 선생님</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>AI 선생님</h1>
+      <span class="subject-badge">수학</span>
+    </header>
+
+    <main id="chat-container">
+      <div class="message tutor">
+        <div class="avatar">AI</div>
+        <div class="bubble">
+          안녕! 오늘은 무엇을 공부해볼까?
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="input-area">
+        <input
+          type="text"
+          id="message-input"
+          placeholder="여기에 질문을 써봐!"
+          autocomplete="off"
+        />
+        <button id="send-btn">보내기</button>
+      </div>
+      <div id="status" class="status hidden">선생님이 생각하고 있어요...</div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
