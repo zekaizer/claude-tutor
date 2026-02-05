@@ -79,9 +79,16 @@ export interface ChatResponse {
 
 // WebSocket message types
 
+export type TimePeriod = 'morning' | 'lunch' | 'afternoon' | 'evening' | 'night';
+
+export interface WelcomeRequest {
+  subject: Subject;
+  timePeriod: TimePeriod;
+}
+
 export interface WsIncomingMessage {
-  type: 'chat';
-  payload: ChatRequest;
+  type: 'chat' | 'welcome';
+  payload: ChatRequest | WelcomeRequest;
 }
 
 export interface WsOutgoingMessage {

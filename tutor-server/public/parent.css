@@ -21,6 +21,32 @@
   --korean: #8B5CF6;
 }
 
+/* Dark mode (system preference) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary: #5BA0E9;
+    --primary-light: #1E3A5F;
+    --text: #E5E7EB;
+    --text-light: #9CA3AF;
+    --bg: #111827;
+    --white: #1F2937;
+    --border: #374151;
+    --success: #34D399;
+
+    /* Subject colors - dark mode */
+    --math: #5BA0E9;
+    --science: #34D399;
+    --english: #F87171;
+    --korean: #A78BFA;
+  }
+
+  /* Subject icon backgrounds - dark mode */
+  .session-icon.math { background: #1E3A5F; }
+  .session-icon.science { background: #064E3B; }
+  .session-icon.english { background: #7F1D1D; }
+  .session-icon.korean { background: #4C1D95; }
+}
+
 body {
   font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   font-size: 16px;
@@ -30,7 +56,7 @@ body {
 }
 
 .container {
-  max-width: 800px;
+  max-width: 900px;
   margin: 0 auto;
   padding: 20px;
 }
@@ -236,11 +262,104 @@ header h1 {
   background: var(--border);
 }
 
-/* Responsive */
-@media (max-width: 600px) {
+/* ========================================
+   RESPONSIVE STYLES
+   ======================================== */
+
+/* Mobile Small (< 360px) */
+@media (max-width: 359px) {
+  body {
+    font-size: 14px;
+  }
+
+  .container {
+    padding: 12px;
+  }
+
   header {
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
+    padding: 12px 0;
+    margin-bottom: 16px;
+  }
+
+  header h1 {
+    font-size: 20px;
+  }
+
+  .date-nav {
+    gap: 8px;
+  }
+
+  #current-date {
+    font-size: 14px;
+    min-width: 100px;
+  }
+
+  .usage-section,
+  .sessions-section,
+  .content-section {
+    padding: 16px;
+    margin-bottom: 16px;
+    border-radius: 8px;
+  }
+
+  .usage-section h2,
+  .sessions-section h2,
+  .content-section h2 {
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+
+  .session-card {
+    padding: 10px;
+    gap: 12px;
+  }
+
+  .session-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    border-radius: 8px;
+  }
+
+  .session-subject {
+    font-size: 14px;
+  }
+
+  .session-meta {
+    font-size: 12px;
+  }
+
+  .content-body {
+    max-height: 400px;
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .close-btn {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+}
+
+/* Mobile (360px - 479px) */
+@media (min-width: 360px) and (max-width: 479px) {
+  body {
+    font-size: 15px;
+  }
+
+  .container {
+    padding: 16px;
+  }
+
+  header {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  header h1 {
+    font-size: 22px;
   }
 
   .session-card {
@@ -251,5 +370,62 @@ header h1 {
     width: 40px;
     height: 40px;
     font-size: 20px;
+  }
+}
+
+/* Tablet Portrait (480px - 767px) */
+@media (min-width: 480px) and (max-width: 767px) {
+  .container {
+    max-width: 100%;
+    padding: 20px 24px;
+  }
+
+  header {
+    flex-direction: row;
+  }
+
+  .session-card {
+    padding: 14px;
+  }
+}
+
+/* Desktop (>= 768px) */
+@media (min-width: 768px) {
+  .container {
+    max-width: 900px;
+  }
+
+  .content-body {
+    max-height: 600px;
+  }
+}
+
+/* Large Desktop (>= 1024px) */
+@media (min-width: 1024px) {
+  .container {
+    max-width: 960px;
+  }
+
+  .sessions-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .nav-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .session-card {
+    min-height: 44px;
+  }
+
+  .close-btn {
+    min-height: 44px;
+    padding: 12px 24px;
   }
 }

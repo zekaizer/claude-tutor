@@ -10,7 +10,8 @@
   <div class="container">
     <header>
       <h1>AI 선생님</h1>
-      <span id="subject-badge" class="subject-badge" data-subject="math">수학</span>
+      <span id="subject-badge" class="subject-badge hidden" data-subject="math">수학</span>
+      <button id="change-subject-btn" class="change-subject-header hidden">← 과목</button>
     </header>
 
     <!-- Subject selection screen -->
@@ -25,14 +26,7 @@
     </div>
 
     <!-- Chat screen (hidden initially) -->
-    <main id="chat-container" class="hidden">
-      <div class="message tutor">
-        <div class="avatar">AI</div>
-        <div class="bubble">
-          안녕! 오늘은 무엇을 공부해볼까?
-        </div>
-      </div>
-    </main>
+    <main id="chat-container" class="hidden"></main>
 
     <footer id="chat-footer" class="hidden">
       <div class="input-area">
@@ -44,8 +38,6 @@
         />
         <button id="send-btn">보내기</button>
       </div>
-      <div id="status" class="status hidden">선생님이 생각하고 있어요...</div>
-      <button id="change-subject-btn" class="change-subject">다른 과목 하기</button>
     </footer>
   </div>
 

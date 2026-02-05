@@ -11,24 +11,52 @@ const SUBJECT_NAMES = {
   korean: '국어',
 };
 
-// Welcome messages per subject
-const WELCOME_MESSAGES = {
-  math: '안녕! 수학 공부하러 왔구나 🔢\n무엇이든 물어봐!',
-  science: '안녕! 과학 공부하러 왔구나 🔬\n신기한 것들 같이 알아보자!',
-  english: '안녕! 영어 공부하러 왔구나 🔤\nLet\'s learn together!',
-  korean: '안녕! 국어 공부하러 왔구나 📖\n같이 글 읽고 써보자!',
-};
+// Get time period for greeting context
+function getTimePeriod() {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour < 11) return 'morning';
+  if (hour >= 11 && hour < 14) return 'lunch';
+  if (hour >= 14 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 21) return 'evening';
+  return 'night';
+}
 
 // DOM elements
 const chatContainer = document.getElementById('chat-container');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
-const status = document.getElementById('status');
 const subjectSelect = document.getElementById('subject-select');
 const subjectBadge = document.getElementById('subject-badge');
 const chatFooter = document.getElementById('chat-footer');
 const changeSubjectBtn = document.getElementById('change-subject-btn');
 const subjectButtons = document.querySelectorAll('.subject-btn');
+
+// Placeholder messages
+const DEFAULT_PLACEHOLDER = '여기에 질문을 써봐!';
+const THINKING_PLACEHOLDER = '선생님이 생각하고 있어요...';
+
+// Auto-scroll when chat container content changes
+let userIsScrolling = false;
+let scrollTimeout = null;
+
+chatContainer.addEventListener('scroll', () => {
+  userIsScrolling = true;
+  clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(() => {
+    userIsScrolling = false;
+  }, 150);
+});
+
+const mutationObserver = new MutationObserver(() => {
+  if (!userIsScrolling) {
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+});
+mutationObserver.observe(chatContainer, {
+  childList: true,
+  subtree: true,
+  characterData: true
+});
 
 // Initialize WebSocket
 function connectWebSocket() {
@@ -91,24 +119,38 @@ function selectSubject(subject) {
   // Update UI
   subjectBadge.textContent = SUBJECT_NAMES[subject];
   subjectBadge.dataset.subject = subject;
+  subjectBadge.classList.remove('hidden');
+  changeSubjectBtn.classList.remove('hidden');
   document.body.dataset.subject = subject;
 
-  // Clear chat and show welcome
+  // Clear chat and switch screens
   chatContainer.innerHTML = '';
-  addMessage(WELCOME_MESSAGES[subject], 'tutor');
-
-  // Switch screens
   subjectSelect.classList.add('hidden');
   chatContainer.classList.remove('hidden');
   chatFooter.classList.remove('hidden');
 
-  enableInput();
+  // Request welcome message from Claude
+  disableInput();
+  showStatus(true);
+  ws.send(
+    JSON.stringify({
+      type: 'welcome',
+      payload: {
+        subject: subject,
+        timePeriod: getTimePeriod(),
+      },
+    })
+  );
 }
 
 // Go back to subject selection
 function changeSubject() {
   currentSubject = null;
   sessionId = null;
+
+  // Hide header elements
+  subjectBadge.classList.add('hidden');
+  changeSubjectBtn.classList.add('hidden');
 
   // Switch screens
   subjectSelect.classList.remove('hidden');
@@ -145,7 +187,6 @@ function sendMessage() {
 async function typeMessage(bubble, text, speed = 15) {
   for (const char of text) {
     bubble.textContent += char;
-    chatContainer.scrollTop = chatContainer.scrollHeight;
     await new Promise((r) => setTimeout(r, speed));
   }
 }
@@ -167,20 +208,18 @@ function addMessage(text, sender, animate = false) {
     messageDiv.appendChild(avatar);
     messageDiv.appendChild(bubble);
     chatContainer.appendChild(messageDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
     typeMessage(bubble, text);
   } else {
     bubble.textContent = text;
     messageDiv.appendChild(avatar);
     messageDiv.appendChild(bubble);
     chatContainer.appendChild(messageDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
   }
 }
 
 // UI helpers
 function showStatus(show) {
-  status.classList.toggle('hidden', !show);
+  messageInput.placeholder = show ? THINKING_PLACEHOLDER : DEFAULT_PLACEHOLDER;
 }
 
 function disableInput() {
