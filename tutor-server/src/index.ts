@@ -6,10 +6,53 @@ import { fileURLToPath } from 'url';
 import { ClaudeBridge } from './services/claude-bridge.js';
 import { historyWriter } from './services/history-writer.js';
 import { usageLimiter } from './services/usage-limiter.js';
-import type { WsIncomingMessage, WsOutgoingMessage, Subject } from './types/index.js';
+import type { WsIncomingMessage, WsOutgoingMessage, Subject, WelcomeRequest, ChatRequest } from './types/index.js';
+import { SUBJECT_NAMES } from './types/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
+
+// Time period labels in Korean
+const TIME_LABELS: Record<string, string> = {
+  morning: '아침',
+  lunch: '점심시간',
+  afternoon: '오후',
+  evening: '저녁',
+  night: '밤늦은 시간',
+};
+
+// Build welcome prompt for Claude
+function buildWelcomePrompt(subject: Subject, timePeriod: string): string {
+  const subjectName = SUBJECT_NAMES[subject];
+  const timeLabel = TIME_LABELS[timePeriod] || '오늘';
+
+  return `지금은 ${timeLabel}이고, 초등학생이 ${subjectName} 공부를 시작하려고 해.
+친근하고 따뜻하게 한두 문장으로 인사해줘. 이모지 하나 포함해도 좋아.
+시간대에 맞는 인사와 과목에 대한 기대감을 담아줘.`;
+}
+
+// Fallback welcome messages
+function getFallbackWelcome(subject: Subject, timePeriod: string): string {
+  const greetings: Record<string, string[]> = {
+    morning: ['좋은 아침!', '일찍 일어났네!'],
+    lunch: ['안녕!', '점심 먹었어?'],
+    afternoon: ['안녕!', '오후도 화이팅!'],
+    evening: ['좋은 저녁!', '저녁시간이네!'],
+    night: ['늦은 시간인데 열심히 하네!', '조금만 하고 푹 쉬어!'],
+  };
+
+  const subjectPhrases: Record<Subject, string> = {
+    math: '수학 공부하러 왔구나 🔢',
+    science: '과학 공부하러 왔구나 🔬',
+    english: '영어 공부하러 왔구나 🔤',
+    korean: '국어 공부하러 왔구나 📖',
+  };
+
+  const timeGreetings = greetings[timePeriod] || greetings.afternoon;
+  const greeting = timeGreetings[Math.floor(Math.random() * timeGreetings.length)];
+
+  return `${greeting} ${subjectPhrases[subject]}\n무엇이든 물어봐!`;
+}
 
 function sendMessage(ws: WebSocket, message: WsOutgoingMessage): void {
   if (ws.readyState === WebSocket.OPEN) {
@@ -74,7 +117,33 @@ async function main() {
       try {
         const message: WsIncomingMessage = JSON.parse(data.toString());
 
+        // Handle welcome message request
+        if (message.type === 'welcome') {
+          const payload = message.payload as WelcomeRequest;
+          sendMessage(ws, { type: 'status', payload: { message: 'thinking' } });
+
+          try {
+            const welcomePrompt = buildWelcomePrompt(payload.subject, payload.timePeriod);
+            const response = await claudeBridge.chat(welcomePrompt, undefined, payload.subject);
+
+            sendMessage(ws, {
+              type: 'response',
+              payload: { text: response.text, sessionId: response.sessionId, isError: false },
+            });
+          } catch (error) {
+            // Fallback to static message
+            console.error('[WS] Welcome generation failed, using fallback:', error);
+            const fallback = getFallbackWelcome(payload.subject, payload.timePeriod);
+            sendMessage(ws, {
+              type: 'response',
+              payload: { text: fallback, sessionId: '', isError: false },
+            });
+          }
+          return;
+        }
+
         if (message.type === 'chat') {
+          const chatPayload = message.payload as ChatRequest;
           // Check usage limit
           const canProceed = await usageLimiter.canMakeRequest();
           if (!canProceed) {
@@ -91,14 +160,14 @@ async function main() {
             payload: { message: 'thinking' },
           });
 
-          const subject: Subject = message.payload.subject || 'math';
-          const isNewSession = !message.payload.sessionId;
+          const subject: Subject = chatPayload.subject || 'math';
+          const isNewSession = !chatPayload.sessionId;
 
-          console.log('[WS] Processing message:', message.payload.message, 'subject:', subject);
+          console.log('[WS] Processing message:', chatPayload.message, 'subject:', subject);
 
           const response = await claudeBridge.chat(
-            message.payload.message,
-            message.payload.sessionId,
+            chatPayload.message,
+            chatPayload.sessionId,
             subject
           );
 
@@ -115,7 +184,7 @@ async function main() {
             await historyWriter.appendMessage(
               response.sessionId,
               'user',
-              message.payload.message
+              chatPayload.message
             );
             await historyWriter.appendMessage(
               response.sessionId,

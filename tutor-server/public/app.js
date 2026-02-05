@@ -11,13 +11,15 @@ const SUBJECT_NAMES = {
   korean: '국어',
 };
 
-// Welcome messages per subject
-const WELCOME_MESSAGES = {
-  math: '안녕! 수학 공부하러 왔구나 🔢\n무엇이든 물어봐!',
-  science: '안녕! 과학 공부하러 왔구나 🔬\n신기한 것들 같이 알아보자!',
-  english: '안녕! 영어 공부하러 왔구나 🔤\nLet\'s learn together!',
-  korean: '안녕! 국어 공부하러 왔구나 📖\n같이 글 읽고 써보자!',
-};
+// Get time period for greeting context
+function getTimePeriod() {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour < 11) return 'morning';
+  if (hour >= 11 && hour < 14) return 'lunch';
+  if (hour >= 14 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 21) return 'evening';
+  return 'night';
+}
 
 // DOM elements
 const chatContainer = document.getElementById('chat-container');
@@ -93,16 +95,24 @@ function selectSubject(subject) {
   subjectBadge.dataset.subject = subject;
   document.body.dataset.subject = subject;
 
-  // Clear chat and show welcome
+  // Clear chat and switch screens
   chatContainer.innerHTML = '';
-  addMessage(WELCOME_MESSAGES[subject], 'tutor');
-
-  // Switch screens
   subjectSelect.classList.add('hidden');
   chatContainer.classList.remove('hidden');
   chatFooter.classList.remove('hidden');
 
-  enableInput();
+  // Request welcome message from Claude
+  disableInput();
+  showStatus(true);
+  ws.send(
+    JSON.stringify({
+      type: 'welcome',
+      payload: {
+        subject: subject,
+        timePeriod: getTimePeriod(),
+      },
+    })
+  );
 }
 
 // Go back to subject selection
