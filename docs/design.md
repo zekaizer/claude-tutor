@@ -19,7 +19,7 @@ Claude Code CLI를 백엔드로 활용하여 Max 요금제 사용량 내에서 �
 | **연동 방식** | subprocess spawn | 네이티브 Node.js 함수 호출 |
 | **스트리밍** | `--output-format stream-json` | AsyncGenerator 네이티브 스트리밍 |
 | **세션 관리** | `--continue` / `--resume <session-id>` | 프로그래밍 방식 세션 관리 |
-| **안정성** | TTY 이슈 가능 (알려진 버그들 존재) | 안정적 |
+| **안정성** | 안정적 (TTY 이슈 검증 완료) | 안정적 |
 
 ### 결론
 
@@ -69,10 +69,11 @@ Agent SDK는 API 키가 필요하여 별도 과금이 발생한다.
 │  │  │  child_process.spawn('claude', [             │  │  │
 │  │  │    '-p',                                     │  │  │
 │  │  │    '--output-format', 'stream-json',         │  │  │
-│  │  │    '--system-prompt', tutorPrompt,           │  │  │
-│  │  │    '--resume', sessionId,     // 세션 유지    │  │  │
+│  │  │    '--verbose',               // 필수        │  │  │
+│  │  │    '--append-system-prompt', tutorPrompt,    │  │  │
+│  │  │    '--continue',              // 세션 유지    │  │  │
 │  │  │    '--model', 'sonnet',       // 비용 효율    │  │  │
-│  │  │    '--allowedTools', 'none',  // 도구 차단    │  │  │
+│  │  │    '--disallowedTools', '...', // 도구 차단   │  │  │
 │  │  │  ])                                          │  │  │
 │  │  │                                              │  │  │
 │  │  │  stdin ← user message                        │  │  │
@@ -105,31 +106,34 @@ Agent SDK는 API 키가 필요하여 별도 과금이 발생한다.
 
 CLI 프로세스를 관리하는 레이어. 핵심 동작:
 
-```
+```bash
 [새 대화 시작]
-claude -p \
+echo "3+5는 어떻게 풀어?" | claude -p \
   --output-format stream-json \
-  --system-prompt "$(cat prompts/math-tutor.md)" \
-  --model sonnet \
   --verbose \
-  "3+5는 어떻게 풀어?"
+  --model sonnet \
+  --append-system-prompt "$(cat prompts/math-tutor.md)" \
+  --disallowedTools "Bash,Edit,Write,Read,Glob,Grep,Task,WebFetch,WebSearch,LS,MultiEdit,NotebookEdit,TodoWrite"
 
 [대화 이어가기]
-claude -p \
+echo "그러면 10+7은?" | claude -p \
   --output-format stream-json \
-  --resume <session-id> \
-  --continue \
-  "그러면 10+7은?"
+  --verbose \
+  --model sonnet \
+  --continue
 ```
+
+> **참고**: `--system-prompt` 옵션은 존재하지 않음. `--append-system-prompt`만 사용 가능.
+> 기본 Claude Code 시스템 프롬프트에 추가되므로, 튜터 역할을 강하게 지시해야 함.
 
 **주요 고려사항:**
 
-- **동시성 제한**: Claude Code CLI는 동일 계정에서 동시 세션에 제한이 있을 수 있음.
-  → 요청 큐를 두어 순차 처리 (아이 1명이 쓰는 용도이므로 문제 없음)
-- **TTY 이슈**: `-p` 모드에서 subprocess 호출 시 TTY 관련 버그가 보고된 바 있음.
-  → `script -q /dev/null claude -p ...` 래퍼 또는 PTY 에뮬레이션으로 우회
-- **타임아웃**: 응답이 60초 이상 걸리면 프로세스 kill 후 재시도
-- **도구 차단**: `--allowedTools` 빈값 또는 `--disallowedTools`로 Bash, Write 등 위험 도구 비활성화
+- **동시성**: 동시 세션 가능하나, 단일 사용자 시스템이므로 요청 큐잉 권장
+- **TTY 이슈**: ✅ 검증 완료 - `child_process.spawn()`으로 직접 실행 가능 (래퍼 불필요)
+- **스트리밍**: 응답은 토큰별이 아닌 완료 후 일괄 전달됨 → UI에 타이핑 애니메이션 권장
+- **타임아웃**: 응답이 60초 이상 걸리면 SIGTERM → SIGKILL 순서로 프로세스 종료
+- **도구 차단**: `--disallowedTools`로 모든 도구 비활성화 가능
+- **필수 옵션**: `stream-json` 사용 시 `--verbose` 플래그 필수
 
 ### 4.2 시스템 프롬프트 설계
 
@@ -278,11 +282,14 @@ tutor-server/
 2. 아이가 메시지 입력 ("3+5는?")
 3. Client → WebSocket → Server
 4. Server: 시스템 프롬프트 로드 (base-tutor.md + math-tutor.md)
-5. Server: claude -p --system-prompt <prompt> --output-format stream-json
+5. Server: claude -p --append-system-prompt <prompt> --output-format stream-json --verbose
 6. Server: stdin으로 아이 메시지 전달
-7. Claude stdout → stream-json 파싱 → WebSocket → Client (실시간)
-8. 응답 완료 시: session-id 기록 + .md 파일 생성
+7. Claude stdout → stream-json 파싱 (NDJSON) → WebSocket → Client
+8. 응답 완료 시: init 메시지에서 session-id 추출 + .md 파일 생성
 ```
+
+> **참고**: 스트리밍은 토큰별이 아닌 응답 완료 후 일괄 전달됨.
+> UI에서 타이핑 애니메이션을 추가하면 더 자연스러운 경험 제공 가능.
 
 ### 5.2 대화 이어가기
 
@@ -329,13 +336,13 @@ services:
 
 | 리스크 | 심각도 | 완화 방안 |
 |---|---|---|
-| Claude Code CLI `-p` 모드 TTY 버그 | 중 | `script` 래퍼 또는 PTY 에뮬레이션 (`node-pty`) |
+| Claude Code CLI `-p` 모드 TTY 버그 | ~~중~~ **해결** | ✅ 검증 완료: `child_process.spawn()` 직접 사용 가능 |
 | Max 요금제 사용량 소진 | 중 | 일일 사용량 제한 (예: 50회/일), Sonnet 모델 사용 |
-| CLI 응답 지연/행 | 중 | 60초 타임아웃 + kill + 재시도 로직 |
+| CLI 응답 지연/행 | 중 | 60초 타임아웃 + SIGTERM/SIGKILL + 재시도 로직 |
 | Claude Code 버전 업데이트로 CLI 동작 변경 | 중 | 특정 버전 고정 또는 업데이트 전 테스트 |
 | 아이가 학습 외 주제로 대화 시도 | 저 | 시스템 프롬프트에서 가드레일 설정 |
-| Docker 내 Claude Code 인증 만료 | 중 | 호스트의 `~/.claude` 마운트 + 주기적 갱신 확인 |
-| `--resume` 세션 ID 만료/유실 | 저 | 세션 만료 시 새 세션으로 자동 전환, 히스토리는 md에 보존 |
+| Docker 내 Claude Code 인증 만료 | 중 | `setup-token`으로 장기 토큰 설정 + `~/.claude` 마운트 |
+| `--continue` 세션 컨텍스트 유실 | 저 | 세션 만료 시 새 세션으로 자동 전환, 히스토리는 md에 보존 |
 
 ---
 
@@ -364,10 +371,10 @@ services:
 - [ ] 일일 사용량 제한
 
 ### Phase 3 — 안정화 (1주)
-- [ ] Docker 패키징
-- [ ] TTY 이슈 우회 적용
-- [ ] 에러 핸들링/재시도 로직
+- [ ] Docker 패키징 (`setup-token` 인증 포함)
+- [ ] 에러 핸들링/재시도 로직 (타임아웃, SIGTERM/SIGKILL)
 - [ ] 기본 학부모 조회 페이지
+- [ ] UI 타이핑 애니메이션 (응답 일괄 전달 대응)
 
 ### Phase 4 — 개선 (선택)
 - [ ] React 프론트엔드 전환
