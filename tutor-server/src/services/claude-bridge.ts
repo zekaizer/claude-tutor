@@ -91,6 +91,7 @@ const SUBJECT_PROMPT_FILES: Record<Subject, string> = {
   science: 'science-tutor.md',
   english: 'english-tutor.md',
   korean: 'korean-tutor.md',
+  play: 'play-tutor.md',
 };
 
 export class ClaudeBridge extends EventEmitter {

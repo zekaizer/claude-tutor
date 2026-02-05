@@ -23,6 +23,8 @@
   --english-light: #FEE2E2;
   --korean: #8B5CF6;
   --korean-light: #EDE9FE;
+  --play: #F59E0B;
+  --play-light: #FEF3C7;
 }
 
 /* Dark mode (system preference) */
@@ -45,6 +47,8 @@
     --english-light: #7F1D1D;
     --korean: #A78BFA;
     --korean-light: #4C1D95;
+    --play: #FBBF24;
+    --play-light: #78350F;
   }
 }
 
@@ -53,6 +57,7 @@
 [data-subject="science"] { --primary: var(--science); --primary-light: var(--science-light); }
 [data-subject="english"] { --primary: var(--english); --primary-light: var(--english-light); }
 [data-subject="korean"] { --primary: var(--korean); --primary-light: var(--korean-light); }
+[data-subject="play"] { --primary: var(--play); --primary-light: var(--play-light); }
 
 .hidden {
   display: none !important;
@@ -360,6 +365,11 @@ footer {
 .subject-btn[data-subject="korean"] {
   background: var(--korean-light);
   color: var(--korean);
+}
+
+.subject-btn[data-subject="play"] {
+  background: var(--play-light);
+  color: var(--play);
 }
 
 /* ========================================

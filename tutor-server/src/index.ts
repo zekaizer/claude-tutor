@@ -27,6 +27,11 @@ function buildWelcomePrompt(subject: Subject, timePeriod: string): string {
   const subjectName = SUBJECT_NAMES[subject];
   const timeLabel = TIME_LABELS[timePeriod] || '오늘';
 
+  if (subject === 'play') {
+    return `지금은 ${timeLabel}이고, 초등학생이 놀러 왔어.
+친근하고 재미있게 한두 문장으로 인사하고 뭐 하고 놀지 물어봐. 이모지 포함해도 좋아.`;
+  }
+
   return `지금은 ${timeLabel}이고, 초등학생이 ${subjectName} 공부를 시작하려고 해.
 친근하고 따뜻하게 한두 문장으로 인사해줘. 이모지 하나 포함해도 좋아.
 시간대에 맞는 인사와 과목에 대한 기대감을 담아줘.`;
@@ -47,6 +52,7 @@ function getFallbackWelcome(subject: Subject, timePeriod: string): string {
     science: '과학 공부하러 왔구나 🔬',
     english: '영어 공부하러 왔구나 🔤',
     korean: '국어 공부하러 왔구나 📖',
+    play: '놀러 왔구나 🎮',
   };
 
   const timeGreetings = greetings[timePeriod] || greetings.afternoon;

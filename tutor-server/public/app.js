@@ -9,6 +9,7 @@ const SUBJECT_NAMES = {
   science: '과학',
   english: '영어',
   korean: '국어',
+  play: '놀이',
 };
 
 // Get time period for greeting context

@@ -1,11 +1,12 @@
 // Subject types
-export type Subject = 'math' | 'science' | 'english' | 'korean';
+export type Subject = 'math' | 'science' | 'english' | 'korean' | 'play';
 
 export const SUBJECT_NAMES: Record<Subject, string> = {
   math: '수학',
   science: '과학',
   english: '영어',
   korean: '국어',
+  play: '놀이',
 };
 
 // Stream-JSON message types from Claude CLI
