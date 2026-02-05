@@ -70,7 +70,7 @@ function handleServerMessage(data) {
     case 'response':
       showStatus(false);
       sessionId = data.payload.sessionId;
-      addMessage(data.payload.text, 'tutor');
+      addMessage(data.payload.text, 'tutor', true);
       enableInput();
       break;
 
@@ -141,8 +141,17 @@ function sendMessage() {
   disableInput();
 }
 
+// Typing animation for tutor messages
+async function typeMessage(bubble, text, speed = 15) {
+  for (const char of text) {
+    bubble.textContent += char;
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    await new Promise((r) => setTimeout(r, speed));
+  }
+}
+
 // Add message to chat
-function addMessage(text, sender) {
+function addMessage(text, sender, animate = false) {
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${sender}`;
 
@@ -152,14 +161,21 @@ function addMessage(text, sender) {
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
-  bubble.textContent = text;
 
-  messageDiv.appendChild(avatar);
-  messageDiv.appendChild(bubble);
-  chatContainer.appendChild(messageDiv);
-
-  // Scroll to bottom
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+  if (animate && sender === 'tutor') {
+    bubble.textContent = '';
+    messageDiv.appendChild(avatar);
+    messageDiv.appendChild(bubble);
+    chatContainer.appendChild(messageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    typeMessage(bubble, text);
+  } else {
+    bubble.textContent = text;
+    messageDiv.appendChild(avatar);
+    messageDiv.appendChild(bubble);
+    chatContainer.appendChild(messageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
 }
 
 // UI helpers

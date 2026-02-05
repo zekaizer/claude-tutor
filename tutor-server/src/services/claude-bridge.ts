@@ -14,6 +14,8 @@ import type {
 
 const TIMEOUT_MS = 60000; // 60 seconds
 const KILL_GRACE_MS = 5000; // 5 seconds for SIGKILL
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 1000;
 
 const DISALLOWED_TOOLS = [
   'Bash',
@@ -85,7 +87,7 @@ export class ClaudeBridge extends EventEmitter {
     const request = this.queue.shift()!;
 
     try {
-      const response = await this.executeQuery(request);
+      const response = await this.executeWithRetry(request);
       request.resolve(response);
     } catch (error) {
       request.reject(error as Error);
@@ -93,6 +95,44 @@ export class ClaudeBridge extends EventEmitter {
 
     this.processing = false;
     this.processQueue();
+  }
+
+  private isRetryableError(error: Error): boolean {
+    const message = error.message.toLowerCase();
+    return (
+      message.includes('timeout') ||
+      message.includes('econnreset') ||
+      message.includes('spawn') ||
+      message.includes('enoent')
+    );
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async executeWithRetry(request: QueuedRequest): Promise<ChatResponse> {
+    let lastError: Error = new Error('Unknown error');
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        return await this.executeQuery(request);
+      } catch (error) {
+        lastError = error as Error;
+
+        if (attempt < MAX_RETRIES && this.isRetryableError(lastError)) {
+          console.log(
+            `[ClaudeBridge] Retry ${attempt + 1}/${MAX_RETRIES} after error: ${lastError.message}`
+          );
+          await this.delay(RETRY_DELAY_MS);
+          continue;
+        }
+
+        throw lastError;
+      }
+    }
+
+    throw lastError;
   }
 
   private executeQuery(request: QueuedRequest): Promise<ChatResponse> {
