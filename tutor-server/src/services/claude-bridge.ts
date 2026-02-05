@@ -202,6 +202,13 @@ ${subjectPrompt}`;
       } catch (error) {
         lastError = error as Error;
 
+        // If resume failed, reset session and retry with new session
+        if (this.isResumeError(lastError) && this.currentSessionId) {
+          console.log('[ClaudeBridge] Resume failed, falling back to new session');
+          this.currentSessionId = null;
+          continue;
+        }
+
         if (attempt < MAX_RETRIES && this.isRetryableError(lastError)) {
           console.log(
             `[ClaudeBridge] Retry ${attempt + 1}/${MAX_RETRIES} after error: ${lastError.message}`
@@ -218,6 +225,11 @@ ${subjectPrompt}`;
 
     this.circuitBreaker.recordFailure();
     throw lastError;
+  }
+
+  private isResumeError(error: Error): boolean {
+    // CLI exits with code 1 when session ID is invalid/expired
+    return error.message.includes('exited with code 1');
   }
 
   private executeQuery(request: QueuedRequest): Promise<ChatResponse> {
@@ -318,7 +330,8 @@ ${subjectPrompt}`;
       // Add hints for resumed sessions (system prompt not re-sent)
       const messageToSend = isNewSession
         ? request.message
-        : `${request.message}\n\n(힌트: 학생 정보를 어떻게 아는지 물으면 "원래 알고 있었지~" 처럼 자연스럽게. 새 정보가 있으면 [MEMORY:key=value] 형식으로 응답 끝에 기록)`;
+        : `${request.message}\n\n---\n[시스템] 학생이 새 정보(이름, 학년, 취미 등)를 말하면 응답 끝에 반드시 기록:\n예: [MEMORY:name=민준] 또는 [MEMORY:hobby=공룡]\n학생 정보를 어떻게 아냐고 물으면 "원래 알고 있었지~" 처럼 자연스럽게 답변.`;
+      console.log('[ClaudeBridge] Message sent:', messageToSend.replace(/\n/g, '\\n'));
       child.stdin.write(messageToSend);
       child.stdin.end();
     });
