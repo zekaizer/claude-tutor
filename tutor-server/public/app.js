@@ -25,12 +25,38 @@ function getTimePeriod() {
 const chatContainer = document.getElementById('chat-container');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
-const status = document.getElementById('status');
 const subjectSelect = document.getElementById('subject-select');
 const subjectBadge = document.getElementById('subject-badge');
 const chatFooter = document.getElementById('chat-footer');
 const changeSubjectBtn = document.getElementById('change-subject-btn');
 const subjectButtons = document.querySelectorAll('.subject-btn');
+
+// Placeholder messages
+const DEFAULT_PLACEHOLDER = '여기에 질문을 써봐!';
+const THINKING_PLACEHOLDER = '선생님이 생각하고 있어요...';
+
+// Auto-scroll when chat container content changes
+let userIsScrolling = false;
+let scrollTimeout = null;
+
+chatContainer.addEventListener('scroll', () => {
+  userIsScrolling = true;
+  clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(() => {
+    userIsScrolling = false;
+  }, 150);
+});
+
+const mutationObserver = new MutationObserver(() => {
+  if (!userIsScrolling) {
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+});
+mutationObserver.observe(chatContainer, {
+  childList: true,
+  subtree: true,
+  characterData: true
+});
 
 // Initialize WebSocket
 function connectWebSocket() {
@@ -93,6 +119,8 @@ function selectSubject(subject) {
   // Update UI
   subjectBadge.textContent = SUBJECT_NAMES[subject];
   subjectBadge.dataset.subject = subject;
+  subjectBadge.classList.remove('hidden');
+  changeSubjectBtn.classList.remove('hidden');
   document.body.dataset.subject = subject;
 
   // Clear chat and switch screens
@@ -119,6 +147,10 @@ function selectSubject(subject) {
 function changeSubject() {
   currentSubject = null;
   sessionId = null;
+
+  // Hide header elements
+  subjectBadge.classList.add('hidden');
+  changeSubjectBtn.classList.add('hidden');
 
   // Switch screens
   subjectSelect.classList.remove('hidden');
@@ -155,7 +187,6 @@ function sendMessage() {
 async function typeMessage(bubble, text, speed = 15) {
   for (const char of text) {
     bubble.textContent += char;
-    chatContainer.scrollTop = chatContainer.scrollHeight;
     await new Promise((r) => setTimeout(r, speed));
   }
 }
@@ -177,20 +208,18 @@ function addMessage(text, sender, animate = false) {
     messageDiv.appendChild(avatar);
     messageDiv.appendChild(bubble);
     chatContainer.appendChild(messageDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
     typeMessage(bubble, text);
   } else {
     bubble.textContent = text;
     messageDiv.appendChild(avatar);
     messageDiv.appendChild(bubble);
     chatContainer.appendChild(messageDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
   }
 }
 
 // UI helpers
 function showStatus(show) {
-  status.classList.toggle('hidden', !show);
+  messageInput.placeholder = show ? THINKING_PLACEHOLDER : DEFAULT_PLACEHOLDER;
 }
 
 function disableInput() {

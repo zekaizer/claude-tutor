@@ -10,7 +10,8 @@
   <div class="container">
     <header>
       <h1>AI 선생님</h1>
-      <span id="subject-badge" class="subject-badge" data-subject="math">수학</span>
+      <span id="subject-badge" class="subject-badge hidden" data-subject="math">수학</span>
+      <button id="change-subject-btn" class="change-subject-header hidden">← 과목</button>
     </header>
 
     <!-- Subject selection screen -->
@@ -37,8 +38,6 @@
         />
         <button id="send-btn">보내기</button>
       </div>
-      <div id="status" class="status hidden">선생님이 생각하고 있어요...</div>
-      <button id="change-subject-btn" class="change-subject">다른 과목 하기</button>
     </footer>
   </div>
 

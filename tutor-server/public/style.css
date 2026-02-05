@@ -99,11 +99,28 @@ header h1 {
   font-weight: 600;
 }
 
+.change-subject-header {
+  margin-left: auto;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.change-subject-header:hover {
+  background: var(--bg);
+}
+
 /* Chat Area */
 #chat-container {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  padding-bottom: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -113,6 +130,12 @@ header h1 {
   display: flex;
   gap: 12px;
   max-width: 85%;
+  animation: fadeSlideIn 0.2s ease-out;
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .message.tutor {
@@ -152,6 +175,7 @@ header h1 {
   line-height: 1.6;
   font-size: 18px;
   white-space: pre-wrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .tutor .bubble {
@@ -207,32 +231,15 @@ footer {
   background: #3A7BC8;
 }
 
+#send-btn:active {
+  transform: scale(0.95);
+}
+
 #send-btn:disabled {
   background: #B8C4CE;
   cursor: not-allowed;
 }
 
-/* Status */
-.status {
-  text-align: center;
-  padding: 12px;
-  color: var(--text-light);
-  font-size: 16px;
-}
-
-.status.hidden {
-  display: none;
-}
-
-/* Thinking animation */
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.status:not(.hidden) {
-  animation: pulse 1.5s ease-in-out infinite;
-}
 
 /* Connection status */
 .connection-lost {
@@ -325,24 +332,6 @@ footer {
   color: var(--korean);
 }
 
-/* Change subject button */
-.change-subject {
-  width: 100%;
-  margin-top: 12px;
-  padding: 10px;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 14px;
-  color: var(--text-light);
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.change-subject:hover {
-  background: var(--bg);
-}
-
 /* ========================================
    RESPONSIVE STYLES
    ======================================== */
@@ -413,11 +402,6 @@ footer {
   .subject-btn {
     padding: 20px 16px;
     font-size: 18px;
-  }
-
-  .change-subject {
-    padding: 8px;
-    font-size: 13px;
   }
 }
 
@@ -498,10 +482,6 @@ footer {
   }
 
   .subject-btn {
-    min-height: 44px;
-  }
-
-  .change-subject {
     min-height: 44px;
   }
 }
