@@ -35,6 +35,23 @@ const subjectButtons = document.querySelectorAll('.subject-btn');
 const DEFAULT_PLACEHOLDER = '여기에 질문을 써봐!';
 const THINKING_PLACEHOLDER = '선생님이 생각하고 있어요...';
 
+// Parse basic markdown to HTML (with XSS protection)
+function parseMarkdown(text) {
+  // 1. Escape HTML entities first (XSS prevention)
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // 2. Parse markdown (order matters: bold before italic)
+  html = html
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code>$1</code>');
+
+  return html;
+}
+
 // Auto-scroll when chat container content changes
 let userIsScrolling = false;
 let scrollTimeout = null;
@@ -183,10 +200,12 @@ function sendMessage() {
   disableInput();
 }
 
-// Typing animation for tutor messages
+// Typing animation for tutor messages with markdown support
 async function typeMessage(bubble, text, speed = 15) {
+  let displayed = '';
   for (const char of text) {
-    bubble.textContent += char;
+    displayed += char;
+    bubble.innerHTML = parseMarkdown(displayed);
     await new Promise((r) => setTimeout(r, speed));
   }
 }
@@ -204,13 +223,12 @@ function addMessage(text, sender, animate = false) {
   bubble.className = 'bubble';
 
   if (animate && sender === 'tutor') {
-    bubble.textContent = '';
     messageDiv.appendChild(avatar);
     messageDiv.appendChild(bubble);
     chatContainer.appendChild(messageDiv);
     typeMessage(bubble, text);
   } else {
-    bubble.textContent = text;
+    bubble.innerHTML = parseMarkdown(text);
     messageDiv.appendChild(avatar);
     messageDiv.appendChild(bubble);
     chatContainer.appendChild(messageDiv);
