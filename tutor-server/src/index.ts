@@ -149,6 +149,28 @@ async function main() {
     });
   });
 
+  // Handle server errors
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`[Server] Port ${PORT} is already in use. Kill the existing process or use a different port.`);
+      process.exit(1);
+    }
+    throw error;
+  });
+
+  // Graceful shutdown
+  const shutdown = () => {
+    console.log('\n[Server] Shutting down...');
+    wss.clients.forEach((client) => client.close());
+    server.close(() => {
+      console.log('[Server] Closed');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+
   server.listen(PORT, () => {
     console.log(`[Server] Running on http://localhost:${PORT}`);
   });
