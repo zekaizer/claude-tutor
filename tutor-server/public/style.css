@@ -12,6 +12,26 @@
   --bg: #F8FAFC;
   --white: #FFFFFF;
   --border-radius: 16px;
+
+  /* Subject colors */
+  --math: #4A90D9;
+  --math-light: #E8F2FC;
+  --science: #22C55E;
+  --science-light: #DCFCE7;
+  --english: #EF4444;
+  --english-light: #FEE2E2;
+  --korean: #8B5CF6;
+  --korean-light: #EDE9FE;
+}
+
+/* Subject themes */
+[data-subject="math"] { --primary: var(--math); --primary-light: var(--math-light); }
+[data-subject="science"] { --primary: var(--science); --primary-light: var(--science-light); }
+[data-subject="english"] { --primary: var(--english); --primary-light: var(--english-light); }
+[data-subject="korean"] { --primary: var(--korean); --primary-light: var(--korean-light); }
+
+.hidden {
+  display: none !important;
 }
 
 body {
@@ -214,4 +234,86 @@ footer {
 
 #chat-container::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
+}
+
+/* Subject Selection */
+.subject-select {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 20px;
+}
+
+.subject-select h2 {
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.subject-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.subject-btn {
+  padding: 24px 16px;
+  font-size: 20px;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.subject-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.subject-btn:active {
+  transform: translateY(0);
+}
+
+.subject-btn[data-subject="math"] {
+  background: var(--math-light);
+  color: var(--math);
+}
+
+.subject-btn[data-subject="science"] {
+  background: var(--science-light);
+  color: var(--science);
+}
+
+.subject-btn[data-subject="english"] {
+  background: var(--english-light);
+  color: var(--english);
+}
+
+.subject-btn[data-subject="korean"] {
+  background: var(--korean-light);
+  color: var(--korean);
+}
+
+/* Change subject button */
+.change-subject {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.change-subject:hover {
+  background: var(--bg);
 }
