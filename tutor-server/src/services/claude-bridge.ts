@@ -17,6 +17,57 @@ const KILL_GRACE_MS = 5000; // 5 seconds for SIGKILL
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 
+// Circuit Breaker configuration
+const CIRCUIT_FAILURE_THRESHOLD = 3;
+const CIRCUIT_RESET_TIMEOUT_MS = 30000; // 30 seconds
+
+type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+
+class CircuitBreaker {
+  private state: CircuitState = 'CLOSED';
+  private failureCount = 0;
+  private lastFailureTime = 0;
+
+  canExecute(): boolean {
+    if (this.state === 'CLOSED') return true;
+
+    if (this.state === 'OPEN') {
+      if (Date.now() - this.lastFailureTime >= CIRCUIT_RESET_TIMEOUT_MS) {
+        this.state = 'HALF_OPEN';
+        console.log('[CircuitBreaker] State changed: OPEN -> HALF_OPEN');
+        return true;
+      }
+      return false;
+    }
+
+    // HALF_OPEN: allow one test request
+    return true;
+  }
+
+  recordSuccess(): void {
+    if (this.state !== 'CLOSED') {
+      console.log(`[CircuitBreaker] State changed: ${this.state} -> CLOSED`);
+    }
+    this.failureCount = 0;
+    this.state = 'CLOSED';
+  }
+
+  recordFailure(): void {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+
+    if (this.failureCount >= CIRCUIT_FAILURE_THRESHOLD || this.state === 'HALF_OPEN') {
+      const prevState = this.state;
+      this.state = 'OPEN';
+      console.log(`[CircuitBreaker] State changed: ${prevState} -> OPEN (failures: ${this.failureCount})`);
+    }
+  }
+
+  getState(): CircuitState {
+    return this.state;
+  }
+}
+
 const DISALLOWED_TOOLS = [
   'Bash',
   'Edit',
@@ -47,6 +98,7 @@ export class ClaudeBridge extends EventEmitter {
   private currentSubject: Subject = 'math';
   private basePrompt: string = '';
   private subjectPrompts: Map<Subject, string> = new Map();
+  private circuitBreaker = new CircuitBreaker();
 
   async initialize(): Promise<void> {
     this.basePrompt = await readFile(
@@ -72,6 +124,16 @@ export class ClaudeBridge extends EventEmitter {
   }
 
   async chat(message: string, sessionId?: string, subject?: Subject): Promise<ChatResponse> {
+    // Circuit breaker check - reject immediately if circuit is open
+    if (!this.circuitBreaker.canExecute()) {
+      console.log('[ClaudeBridge] Circuit breaker OPEN, rejecting request');
+      return {
+        text: '잠시 문제가 생겼어요. 조금 후에 다시 해볼까? 🙏',
+        sessionId: sessionId || this.currentSessionId || '',
+        isError: true,
+      };
+    }
+
     return new Promise((resolve, reject) => {
       // Default to math if no subject specified
       const effectiveSubject = subject || this.currentSubject;
@@ -116,7 +178,9 @@ export class ClaudeBridge extends EventEmitter {
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        return await this.executeQuery(request);
+        const result = await this.executeQuery(request);
+        this.circuitBreaker.recordSuccess();
+        return result;
       } catch (error) {
         lastError = error as Error;
 
@@ -128,10 +192,13 @@ export class ClaudeBridge extends EventEmitter {
           continue;
         }
 
+        // Record failure after all retries exhausted
+        this.circuitBreaker.recordFailure();
         throw lastError;
       }
     }
 
+    this.circuitBreaker.recordFailure();
     throw lastError;
   }
 
@@ -298,5 +365,10 @@ export class ClaudeBridge extends EventEmitter {
   // Get current subject
   getCurrentSubject(): Subject {
     return this.currentSubject;
+  }
+
+  // Get circuit breaker state
+  getCircuitState(): CircuitState {
+    return this.circuitBreaker.getState();
   }
 }

@@ -77,7 +77,10 @@ async function main() {
 
   // Health check endpoint
   app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok' });
+    res.json({
+      status: 'ok',
+      circuitBreaker: claudeBridge.getCircuitState(),
+    });
   });
 
   // Usage info endpoint
