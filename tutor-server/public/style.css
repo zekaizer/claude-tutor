@@ -11,6 +11,7 @@
   --text-light: #666;
   --bg: #F8FAFC;
   --white: #FFFFFF;
+  --border: #E5E7EB;
   --border-radius: 16px;
 
   /* Subject colors */
@@ -22,6 +23,29 @@
   --english-light: #FEE2E2;
   --korean: #8B5CF6;
   --korean-light: #EDE9FE;
+}
+
+/* Dark mode (system preference) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary: #5BA0E9;
+    --primary-light: #1E3A5F;
+    --text: #E5E7EB;
+    --text-light: #9CA3AF;
+    --bg: #111827;
+    --white: #1F2937;
+    --border: #374151;
+
+    /* Subject colors - dark mode */
+    --math: #5BA0E9;
+    --math-light: #1E3A5F;
+    --science: #34D399;
+    --science-light: #064E3B;
+    --english: #F87171;
+    --english-light: #7F1D1D;
+    --korean: #A78BFA;
+    --korean-light: #4C1D95;
+  }
 }
 
 /* Subject themes */
@@ -55,7 +79,7 @@ body {
 header {
   padding: 16px 20px;
   background: var(--white);
-  border-bottom: 1px solid #E5E7EB;
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -118,7 +142,7 @@ header h1 {
 }
 
 .user .avatar {
-  background: #E5E7EB;
+  background: var(--border);
   color: var(--text);
 }
 
@@ -145,7 +169,7 @@ header h1 {
 footer {
   padding: 16px 20px;
   background: var(--white);
-  border-top: 1px solid #E5E7EB;
+  border-top: 1px solid var(--border);
 }
 
 .input-area {
@@ -157,7 +181,7 @@ footer {
   flex: 1;
   padding: 14px 18px;
   font-size: 18px;
-  border: 2px solid #E5E7EB;
+  border: 2px solid var(--border);
   border-radius: var(--border-radius);
   outline: none;
   transition: border-color 0.2s;
@@ -307,7 +331,7 @@ footer {
   margin-top: 12px;
   padding: 10px;
   background: transparent;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 14px;
   color: var(--text-light);
