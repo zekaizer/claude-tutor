@@ -164,7 +164,6 @@ async function main() {
           });
 
           const subject: Subject = chatPayload.subject || 'math';
-          const isNewSession = !chatPayload.sessionId;
 
           console.log('[WS] Processing message:', chatPayload.message, 'subject:', subject);
 
@@ -177,8 +176,10 @@ async function main() {
           // Record usage
           await usageLimiter.recordRequest();
 
-          // Start history session if new
-          if (isNewSession && response.sessionId) {
+          // Start history session if new (response has different/new sessionId)
+          const isNewSession = response.sessionId && response.sessionId !== chatPayload.sessionId;
+          const sessionNotTracked = response.sessionId && !historyWriter.getSessionInfo(response.sessionId);
+          if ((isNewSession || sessionNotTracked) && response.sessionId) {
             await historyWriter.startSession(response.sessionId, subject);
           }
 
