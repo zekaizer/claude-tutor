@@ -43,11 +43,12 @@ body {
 }
 
 .container {
-  max-width: 600px;
+  max-width: 700px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
 }
 
 /* Header */
@@ -316,4 +317,189 @@ footer {
 
 .change-subject:hover {
   background: var(--bg);
+}
+
+/* ========================================
+   RESPONSIVE STYLES
+   ======================================== */
+
+/* Mobile Small (< 360px) */
+@media (max-width: 359px) {
+  body {
+    font-size: 16px;
+  }
+
+  header {
+    padding: 12px 16px;
+  }
+
+  header h1 {
+    font-size: 20px;
+  }
+
+  .subject-badge {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  #chat-container {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 12px;
+  }
+
+  .bubble {
+    padding: 12px 14px;
+    font-size: 16px;
+  }
+
+  footer {
+    padding: 12px 16px;
+  }
+
+  #message-input {
+    padding: 12px 14px;
+    font-size: 16px;
+  }
+
+  #send-btn {
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+
+  .subject-select {
+    gap: 24px;
+    padding: 16px;
+  }
+
+  .subject-select h2 {
+    font-size: 22px;
+  }
+
+  .subject-buttons {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+
+  .subject-btn {
+    padding: 20px 16px;
+    font-size: 18px;
+  }
+
+  .change-subject {
+    padding: 8px;
+    font-size: 13px;
+  }
+}
+
+/* Mobile (360px - 479px) */
+@media (min-width: 360px) and (max-width: 479px) {
+  body {
+    font-size: 17px;
+  }
+
+  header h1 {
+    font-size: 22px;
+  }
+
+  .bubble {
+    font-size: 17px;
+  }
+
+  #message-input,
+  #send-btn {
+    font-size: 17px;
+  }
+
+  .subject-select h2 {
+    font-size: 24px;
+  }
+
+  .subject-buttons {
+    max-width: 280px;
+  }
+
+  .subject-btn {
+    padding: 20px 12px;
+    font-size: 18px;
+  }
+}
+
+/* Tablet Portrait (480px - 767px) */
+@media (min-width: 480px) and (max-width: 767px) {
+  .container {
+    max-width: 100%;
+    padding: 0 16px;
+  }
+
+  .subject-buttons {
+    max-width: 340px;
+  }
+}
+
+/* Desktop (>= 768px) */
+@media (min-width: 768px) {
+  .container {
+    max-width: 700px;
+  }
+
+  .message {
+    max-width: 75%;
+  }
+
+  .subject-buttons {
+    max-width: 360px;
+    gap: 20px;
+  }
+
+  .subject-btn {
+    padding: 28px 20px;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  #send-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  #message-input {
+    min-height: 44px;
+  }
+
+  .subject-btn {
+    min-height: 44px;
+  }
+
+  .change-subject {
+    min-height: 44px;
+  }
+}
+
+/* Landscape mode on mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+  .subject-select {
+    gap: 16px;
+    padding: 12px;
+  }
+
+  .subject-select h2 {
+    font-size: 20px;
+  }
+
+  .subject-buttons {
+    grid-template-columns: repeat(4, 1fr);
+    max-width: 100%;
+  }
+
+  .subject-btn {
+    padding: 16px 12px;
+    font-size: 16px;
+  }
 }
