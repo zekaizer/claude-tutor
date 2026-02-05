@@ -1,3 +1,13 @@
+// Subject types
+export type Subject = 'math' | 'science' | 'english' | 'korean';
+
+export const SUBJECT_NAMES: Record<Subject, string> = {
+  math: '수학',
+  science: '과학',
+  english: '영어',
+  korean: '국어',
+};
+
 // Stream-JSON message types from Claude CLI
 
 export interface InitMessage {
@@ -36,6 +46,29 @@ export type StreamMessage = InitMessage | AssistantMessage | ResultMessage;
 export interface ChatRequest {
   message: string;
   sessionId?: string;
+  subject?: Subject;
+}
+
+// History types
+
+export interface HistoryEntry {
+  timestamp: string;
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface SessionInfo {
+  sessionId: string;
+  subject: Subject;
+  createdAt: string;
+  messageCount: number;
+}
+
+// Usage types
+
+export interface UsageData {
+  date: string;
+  count: number;
 }
 
 export interface ChatResponse {
@@ -61,6 +94,7 @@ export interface WsOutgoingMessage {
 export interface QueuedRequest {
   message: string;
   sessionId?: string;
+  subject?: Subject;
   resolve: (value: ChatResponse) => void;
   reject: (error: Error) => void;
 }
